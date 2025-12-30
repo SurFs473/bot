@@ -2,10 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const { DateTime } = require('luxon');
 
-/* =====================================================
-   CONFIG
-===================================================== */
-
 const SYMBOL = 'Usa500';
 const DATA_FOLDER = path.join(__dirname, 'data');
 
@@ -14,14 +10,8 @@ const H1_FILE = path.join(DATA_FOLDER, `${SYMBOL}_H1_2y.json`);
 const M15_FILE = path.join(DATA_FOLDER, `${SYMBOL}_M15_2y.json`);
 const M5_FILE = path.join(DATA_FOLDER, `${SYMBOL}_M5_2y.json`);
 
-// Risk settings
 const RISK_REWARD_RATIO = 2.0;
 
-/* =====================================================
-   HELPERS
-===================================================== */
-
-// Load JSON candles
 function loadCandles(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
