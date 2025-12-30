@@ -3,17 +3,25 @@ const path = require("path");
 const axios = require("axios");
 
 const GW = "http://127.0.0.1:5005";
-const SYMBOL = "Usa500"; // ако е Usa500.cash / US500 -> смени тук
+
+// 🔥 ВСИЧКИ СИМВОЛИ ТУК
+const SYMBOLS = [
+  "Usa500",
+  "EURUSD",
+  "USDJPY",
+  "EURNZD",
+  "GOLD",
+];
+
 const OUT_DIR = path.join(__dirname, "data");
 
-const DAYS_BACK = 730; // 🔥 2 години
+const DAYS_BACK = 730; // 2 години
 const RETRIES = 3;
 
 /*
  MT5 TF names:
  M1, M5, M15, M30, H1, H4, D1
 */
-
 const TIMEFRAMES = [
   { tf: "M1", chunkDays: 7 },
   { tf: "M5", chunkDays: 7 },
@@ -45,9 +53,9 @@ async function connect() {
   );
 }
 
-async function fetchChunk(tf, fromTs, toTs) {
+async function fetchChunk(symbol, tf, fromTs, toTs) {
   const r = await axios.post(`${GW}/rates_range`, {
-    symbol: SYMBOL,
+    symbol,
     timeframe: tf,
     time_from: fromTs,
     time_to: toTs,
@@ -66,8 +74,9 @@ function dedupAndSort(rows) {
   return out;
 }
 
-async function download(tf, chunkDays) {
-  if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR);
+async function downloadSymbolTF(symbol, tf, chunkDays) {
+  const symbolDir = path.join(OUT_DIR, symbol);
+  if (!fs.existsSync(symbolDir)) fs.mkdirSync(symbolDir, { recursive: true });
 
   const toTs = nowUnix();
   const fromTs = toTs - DAYS_BACK * 24 * 60 * 60;
@@ -84,12 +93,12 @@ async function download(tf, chunkDays) {
     for (let k = 1; k <= RETRIES; k++) {
       try {
         console.log(
-          `[${tf}] ${new Date(a * 1000).toISOString()} -> ${new Date(
+          `[${symbol} ${tf}] ${new Date(a * 1000).toISOString()} -> ${new Date(
             b * 1000
           ).toISOString()} (try ${k})`
         );
 
-        const chunk = await fetchChunk(tf, a, b);
+        const chunk = await fetchChunk(symbol, tf, a, b);
         if (chunk.length) all = all.concat(chunk);
 
         ok = true;
@@ -102,28 +111,37 @@ async function download(tf, chunkDays) {
 
     if (!ok) {
       console.log(
-        `FAILED ${tf}. Намали chunkDays и пробвай пак.`
+        `❌ FAILED ${symbol} ${tf}. Намали chunkDays и пробвай пак.`
       );
-      return null;
+      return;
     }
   }
 
   const finalRows = dedupAndSort(all);
-  const outPath = path.join(OUT_DIR, `${SYMBOL}_${tf}_2y.json`);
+  const outPath = path.join(
+    symbolDir,
+    `${symbol}_${tf}_2y.json`
+  );
   fs.writeFileSync(outPath, JSON.stringify(finalRows));
 
-  console.log(`✅ Saved ${finalRows.length} bars -> ${outPath}`);
-  return outPath;
+  console.log(`✅ Saved ${symbol} ${tf}: ${finalRows.length} bars`);
 }
 
 (async () => {
   await connect();
 
-  for (const cfg of TIMEFRAMES) {
-    console.log(`\n=== DOWNLOAD ${cfg.tf} ===`);
-    await download(cfg.tf, cfg.chunkDays);
-    await sleep(1000); // 🔒 малка пауза между TF
+  if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR);
+
+  for (const symbol of SYMBOLS) {
+    console.log(`\n==============================`);
+    console.log(`📊 SYMBOL: ${symbol}`);
+    console.log(`==============================`);
+
+    for (const cfg of TIMEFRAMES) {
+      await downloadSymbolTF(symbol, cfg.tf, cfg.chunkDays);
+      await sleep(1000); // защита за MT5
+    }
   }
 
-  console.log("\n🎯 DONE. Всички таймфреймове са изтеглени.");
+  console.log("\n🎯 DONE. Всички символи и таймфреймове са изтеглени.");
 })();
