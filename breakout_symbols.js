@@ -12,8 +12,10 @@ const SYMBOLS = [
   'GOOGLE.US',
   'MSFT.US',
   'NFLX.US',
-  "TESLA.US",
-  "NVDA.OQ"
+  'TESLA.US',
+  'NVDA.OQ',
+  'BTCUSD',
+  'ADAUSD',
 ];
 
 const BASE_DATA_DIR = path.join(__dirname, 'data');
@@ -32,7 +34,13 @@ function loadCandles(filePath) {
 }
 
 // Simulate trade on M5 after entry
-function simulateTrade(m5Candles, entryTimestamp, direction, stopLoss, takeProfit) {
+function simulateTrade(
+  m5Candles,
+  entryTimestamp,
+  direction,
+  stopLoss,
+  takeProfit
+) {
   for (const candle of m5Candles) {
     if (candle[0] <= entryTimestamp) continue;
 
@@ -106,7 +114,7 @@ function runBacktestForSymbol(symbol) {
 
       if (!hasStructureBreak) continue;
 
-      const entryM5Candle = m5Candles.find(c => c[0] > currentM15[0]);
+      const entryM5Candle = m5Candles.find((c) => c[0] > currentM15[0]);
       if (!entryM5Candle) continue;
 
       const entryPrice = entryM5Candle[4];
@@ -157,7 +165,7 @@ function runBacktestForSymbol(symbol) {
     losingTrades,
     winrate: totalTrades
       ? ((winningTrades / totalTrades) * 100).toFixed(2)
-      : 'n/a'
+      : 'n/a',
   };
 }
 
@@ -192,8 +200,6 @@ console.log('Wins:', grandWins);
 console.log('Losses:', grandLosses);
 console.log(
   'Winrate:',
-  grandTrades
-    ? ((grandWins / grandTrades) * 100).toFixed(2) + '%'
-    : 'n/a'
+  grandTrades ? ((grandWins / grandTrades) * 100).toFixed(2) + '%' : 'n/a'
 );
 console.log('RR:', RISK_REWARD_RATIO);

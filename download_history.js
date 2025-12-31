@@ -12,10 +12,12 @@ const SYMBOLS = [
   // "EURNZD",
   // "GOLD",
   // "NVDA.OQ",
-   "GOOGLE.US",
-   "NFLX.US",
-   "TESLA.US",
-   "MSFT.US"
+  //  "GOOGLE.US",
+  //  "NFLX.US",
+  //  "TESLA.US",
+  //  "MSFT.US",
+  "ADAUSD",
+  "BTCUSD"
 ];
 
 const OUT_DIR = path.join(__dirname, "data");
