@@ -6,11 +6,16 @@ const GW = "http://127.0.0.1:5005";
 
 // 🔥 ВСИЧКИ СИМВОЛИ ТУК
 const SYMBOLS = [
-  "Usa500",
-  "EURUSD",
-  "USDJPY",
-  "EURNZD",
-  "GOLD",
+  // "Usa500",
+  // "EURUSD",
+  // "USDJPY",
+  // "EURNZD",
+  // "GOLD",
+  // "NVDA.OQ",
+   "GOOGLE.US",
+   "NFLX.US",
+   "TESLA.US",
+   "MSFT.US"
 ];
 
 const OUT_DIR = path.join(__dirname, "data");
