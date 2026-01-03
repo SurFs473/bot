@@ -6,7 +6,7 @@ const { post } = axios;
 ========================= */
 
 const GW = 'http://127.0.0.1:5005';
-const SYMBOL = 'Usa500';
+const SYMBOL = 'GOLD';
 const MAGIC = 90090001;
 
 const RISK_PERCENT = 1.0;

@@ -10,7 +10,7 @@ const DIR = path.join(__dirname, 'data', SYMBOL);
 const M15 = JSON.parse(fs.readFileSync(`${DIR}/${SYMBOL}_M15_2y.json`));
 const M5  = JSON.parse(fs.readFileSync(`${DIR}/${SYMBOL}_M5_2y.json`));
 
-const RR = 9.0;
+const RR = 2.0;
 
 /* ===== HELPERS ===== */
 
