@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mean-Reversion Backtest Dashboard</title>
+    <!-- trades/candles/stats produced by: MR_MODE=dashboard npm run mean-reversion -->
+    <script src="dashboard-data.js"></script>
+    <!-- TradingView Lightweight Charts (needs internet the first time you open this) -->
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      :root {
+        --bg: #0e1117;
+        --panel: #161b22;
+        --panel2: #1c2230;
+        --border: #262d38;
+        --ink: #e6edf3;
+        --muted: #8b949e;
+        --green: #2ebd85;
+        --red: #f6465d;
+        --amber: #e3b341;
+        --accent: #58a6ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        padding: 20px;
+      }
+      h1 { font-size: 20px; margin: 0 0 2px; }
+      .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+      .sub b { color: var(--ink); font-weight: 600; }
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+      .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+      .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+      .kpi .val { font-size: 24px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+      .kpi .foot { color: var(--muted); font-size: 11px; margin-top: 2px; }
+      .pos { color: var(--green); }
+      .neg { color: var(--red); }
+      .warn { color: var(--amber); }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 18px; }
+      .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+      .legend { color: var(--muted); font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+      .legend .up { color: var(--green); } .legend .dn { color: var(--red); }
+      #priceChart { height: 460px; width: 100%; }
+      #equityChart { height: 220px; width: 100%; }
+      .row2 { display: grid; grid-template-columns: 1fr 1.3fr; gap: 18px; }
+      @media (max-width: 860px) { .row2 { grid-template-columns: 1fr; } }
+      .detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+      .detail div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 6px 0; }
+      .detail span:first-child { color: var(--muted); }
+      .detail span:last-child { font-variant-numeric: tabular-nums; }
+      table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+      th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+      th:first-child, td:first-child { text-align: left; }
+      th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+      tr:hover td { background: var(--panel2); }
+      .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Mean-Reversion Backtest — <span id="chartSym"></span></h1>
+    <div class="sub" id="sub"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2>
+        Price &amp; trades — <span id="chartSym2"></span>
+        <span class="legend">&nbsp;·&nbsp; <span class="up">▲ long</span> / <span class="dn">▼ short</span> entry, dot = exit (green win / red loss)</span>
+      </h2>
+      <div id="priceChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Equity curve — $1,000 start, 1% flat risk, all markets summed</h2>
+      <div id="equityChart"></div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <h2>Trade stats (all markets)</h2>
+        <div class="detail" id="detail"></div>
+      </div>
+      <div class="card">
+        <h2>Per-market breakdown</h2>
+        <table id="perSym">
+          <thead><tr><th>Market</th><th>Trades</th><th>Win %</th><th>Total R</th><th>Exp R</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note" id="note"></div>
+
+    <script>
+      const D = window.DASH;
+      if (!D) {
+        document.body.innerHTML = '<h1>No data</h1><p>Run <code>MR_MODE=dashboard npm run mean-reversion</code> first to create dashboard-data.js.</p>';
+        throw new Error('no data');
+      }
+      const S = D.stats;
+      const fmt = (n, d = 0) => Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+      const sign = (n, d = 2) => (n >= 0 ? '+' : '') + fmt(n, d);
+      const cls = (n) => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
+
+      document.getElementById('chartSym').textContent = D.chartSymbol;
+      document.getElementById('chartSym2').textContent = D.chartSymbol;
+      document.getElementById('sub').innerHTML =
+        `Out-of-sample test year from <b>${S.from}</b> · <b>${fmt(S.trades)}</b> trades across ${D.perSymbol.length} markets · ` +
+        `trailing-stop exit, no ML filter · <b>gross of costs</b>`;
+
+      // ---- KPI tiles ----
+      const kpis = [
+        { label: 'Win rate', val: fmt(S.winRate, 1) + '%', foot: `${fmt(S.wins)}W / ${fmt(S.losses)}L` },
+        { label: 'Expectancy', val: sign(S.expectancy, 3) + ' R', foot: 'per trade', c: cls(S.expectancy) },
+        { label: 'Profit factor', val: fmt(S.profitFactor, 2), foot: 'won / lost', c: S.profitFactor >= 1 ? 'pos' : 'neg' },
+        { label: 'Total', val: sign(S.totalR, 0) + ' R', foot: `avg win ${sign(S.avgWin, 2)} / loss -${fmt(S.avgLoss, 2)}`, c: cls(S.totalR) },
+        { label: `Final ($1k, ${S.riskPct}% flat)`, val: '$' + fmt(S.flatFinal), foot: sign(S.flatProfit) + ' $', c: cls(S.flatProfit) },
+        { label: 'Max drawdown', val: fmt(S.flatMaxDDpct, 0) + '%', foot: 'flat-risk, peak-to-trough', c: 'warn' },
+      ];
+      document.getElementById('kpis').innerHTML = kpis
+        .map((k) => `<div class="kpi"><div class="label">${k.label}</div><div class="val ${k.c || ''}">${k.val}</div><div class="foot">${k.foot}</div></div>`)
+        .join('');
+
+      // ---- shared chart options ----
+      const chartOpts = (h) => ({
+        height: h,
+        layout: { background: { color: '#161b22' }, textColor: '#8b949e', fontSize: 12 },
+        grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+        rightPriceScale: { borderColor: '#262d38' },
+        timeScale: { borderColor: '#262d38', timeVisible: true, secondsVisible: false },
+        crosshair: { mode: 0 },
+      });
+
+      // ---- price chart + trade markers ----
+      const pc = LightweightCharts.createChart(document.getElementById('priceChart'), chartOpts(460));
+      const candle = pc.addCandlestickSeries({
+        upColor: '#2ebd85', downColor: '#f6465d', borderUpColor: '#2ebd85',
+        borderDownColor: '#f6465d', wickUpColor: '#2ebd85', wickDownColor: '#f6465d',
+      });
+      candle.setData(D.candles.map((c) => ({ time: c[0], open: c[1], high: c[2], low: c[3], close: c[4] })));
+
+      const markers = [];
+      for (const t of D.trades) {
+        const win = t.r > 0;
+        markers.push({
+          time: t.entryTime,
+          position: t.bias === 'long' ? 'belowBar' : 'aboveBar',
+          color: win ? '#2ebd85' : '#f6465d',
+          shape: t.bias === 'long' ? 'arrowUp' : 'arrowDown',
+          text: sign(t.r, 1) + 'R',
+        });
+        markers.push({ time: t.exitTime, position: 'inBar', color: win ? '#2ebd85' : '#f6465d', shape: 'circle' });
+      }
+      markers.sort((a, b) => a.time - b.time);
+      candle.setMarkers(markers);
+      pc.timeScale().fitContent();
+
+      // ---- equity curve (dedupe to unique timestamps, keep last value) ----
+      const eq = new Map();
+      for (const p of D.equity) eq.set(p.t, p.v); // later trades at same time overwrite -> final balance
+      const eqData = [...eq.entries()].sort((a, b) => a[0] - b[0]).map(([t, v]) => ({ time: t, value: v }));
+      const ec = LightweightCharts.createChart(document.getElementById('equityChart'), chartOpts(220));
+      const eqLine = ec.addAreaSeries({ lineColor: '#58a6ff', topColor: 'rgba(88,166,255,0.25)', bottomColor: 'rgba(88,166,255,0.02)', lineWidth: 2 });
+      eqLine.setData(eqData);
+      ec.timeScale().fitContent();
+
+      // keep the two time axes in sync when zooming/panning
+      pc.timeScale().subscribeVisibleLogicalRangeChange((r) => r && ec.timeScale().setVisibleLogicalRange(r));
+
+      // ---- detail stats ----
+      const detail = [
+        ['Trades', fmt(S.trades)],
+        ['Wins / Losses', `${fmt(S.wins)} / ${fmt(S.losses)}`],
+        ['Avg win', sign(S.avgWin, 2) + ' R'],
+        ['Avg loss', '-' + fmt(S.avgLoss, 2) + ' R'],
+        ['Biggest win', sign(S.biggestWin, 1) + ' R'],
+        ['Biggest loss', fmt(S.biggestLoss, 1) + ' R'],
+        ['Longest win streak', fmt(S.maxWinStreak)],
+        ['Longest loss streak', fmt(S.maxLossStreak)],
+      ];
+      document.getElementById('detail').innerHTML = detail.map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('');
+
+      // ---- per-market table ----
+      const rows = [...D.perSymbol].sort((a, b) => b.exp - a.exp);
+      document.querySelector('#perSym tbody').innerHTML = rows
+        .map(
+          (r) =>
+            `<tr><td>${r.symbol}</td><td>${fmt(r.trades)}</td><td>${fmt(r.wr, 1)}</td>` +
+            `<td class="${cls(r.totalR)}">${sign(r.totalR, 0)}</td><td class="${cls(r.exp)}">${sign(r.exp, 3)}</td></tr>`
+        )
+        .join('');
+
+      document.getElementById('note').textContent =
+        'Chart shows ' + D.chartSymbol + ' candles + its trades; all stats are summed across every market. ' +
+        'Set CHART_SYMBOL=GER40 (etc.) before the dashboard run to draw a different market. Numbers are gross of spread/commission.';
+    </script>
+  </body>
+</html>

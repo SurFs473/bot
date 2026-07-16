@@ -1,0 +1,18 @@
+{
+  "name": "bot",
+  "private": true,
+  "scripts": {
+    "mean-reversion": "node -r ts-node/register back-test/mean-reversion-sp.ts",
+    "mr-live": "node -r ts-node/register live/mean-reversion-live.ts",
+    "download-data": "node download_histdata.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0",
+    "axios": "^1.13.2"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+.vscode/
+.dukascopy-cache/
+
+# data + generated artifacts — not code (regenerate with `npm run download-data`
+# and MR_MODE=dashboard). Keeps the repo to just the bot code.
+data/
+back-test/dashboard-data.js
+
+.claude/
